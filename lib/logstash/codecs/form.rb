@@ -1,6 +1,6 @@
 # encoding: utf-8
 require 'logstash/codecs/base'
-require 'logstash/codecs/line'
+require 'logstash/util/charset'
 require 'uri'
 
 class LogStash::Codecs::Form < LogStash::Codecs::Base
@@ -29,10 +29,13 @@ class LogStash::Codecs::Form < LogStash::Codecs::Base
   #     }
   config_name 'form'
 
+  # The character encoding used in this codec. Defaults to "UTF-8".
+  config :charset, validate: ::Encoding.name_list, default: "UTF-8"
+
   private
-  def parse(line)
+  def parse(payload)
     event = {}
-    keypairs = URI.decode_www_form(line['message'])
+    keypairs = URI.decode_www_form payload
     keypairs.each do |keypair|
       if event.has_key? keypair[0]
         event[keypair[0]] << keypair[1]
@@ -45,19 +48,31 @@ class LogStash::Codecs::Form < LogStash::Codecs::Base
 
   private
   def dump(event)
-    URI.encode_www_form(event.to_hash) + NL
+    URI.encode_www_form event.to_hash
   end
 
   public
   def register
-    @lines = LogStash::Codecs::Line.new
-    @lines.charset = 'UTF-8'
+    @converter = LogStash::Util::Charset.new @charset
+    @converter.logger = @logger
   end
 
   public
   def decode(payload)
-    @lines.decode(payload) do |line|
-      yield LogStash::Event.new(parse(line))
+    payload = @converter.convert payload
+    begin
+      yield LogStash::Event.new(parse(payload))
+    rescue StandardError => e
+      @logger.warn(
+        "An unexpected error occurred",
+        message: e.message,
+        backtrace: e.backtrace,
+        input: payload
+      )
+      yield LogStash::Event.new(
+        "message" => payload,
+        "tags" => ["_formparsefailure"]
+      )
     end
   end
 
