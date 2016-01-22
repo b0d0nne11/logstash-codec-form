@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name            = 'logstash-codec-form'
-  s.version         = '1.0.0'
+  s.version         = '1.1.0'
   s.licenses        = ['Apache License (2.0)']
   s.summary         = "Read or write events in a application/x-www-form-urlencoded format."
   s.description     = "This gem is a logstash plugin required to be installed on top of the Logstash core pipeline using $LS_HOME/bin/plugin install gemname. This gem is not a stand-alone program."
